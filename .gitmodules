@@ -1,0 +1,6 @@
+[submodule "transcoder/amazon-s3-gst-plugin"]
+	path = transcoder/amazon-s3-gst-plugin
+	url = https://github.com/MaxKhlupnov/amazon-s3-gst-plugin
+[submodule "transcoder/--force"]
+	path = transcoder/--force
+	url = https://github.com/MaxKhlupnov/amazon-s3-gst-plugin
