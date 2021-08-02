@@ -15,10 +15,11 @@ if(GStreamer_FOUND)
   include_directories(${GSTREAMER_INCLUDE_DIRS})
 endif()
 
-include_directories("/usr/include/gstreamer-1.0/" "/usr/include/glib-2.0/")
+include_directories("/usr/include/gstreamer-1.0/" "/usr/include/glib-2.0/" 
+"/usr/include/gstreamer-1.0/gst/pbutils/" "/usr/include/gstreamer-1.0/gst/video" "/usr/include/gstreamer-1.0/gst/audio")
 
 # these calls create special `PkgConfig::<MODULE>` variables
-pkg_check_modules(GLIB_PKG REQUIRED IMPORTED_TARGET glib-2.0)
+pkg_check_modules(GLIB_PKG REQUIRED IMPORTED_TARGET glib-2.0 gstreamer-pbutils-1.0)
 
 add_subdirectory("sk-transcoder")
 

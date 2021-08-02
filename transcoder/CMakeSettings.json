@@ -21,6 +21,18 @@
       "addressSanitizerRuntimeFlags": "detect_leaks=0",
       "intelliSenseMode": "linux-gcc-x64",
       "remoteCopyAdditionalIncludeDirectories": [ "/usr/include/gstreamer-1.0/", "/usr/include/glib-2.0/" ]
+    },
+    {
+      "name": "WSL-GCC-Debug",
+      "generator": "Ninja",
+      "configurationType": "Debug",
+      "buildRoot": "${projectDir}\\out\\build\\${name}",
+      "installRoot": "${projectDir}\\out\\install\\${name}",
+      "cmakeExecutable": "cmake",
+      "cmakeCommandArgs": "",
+      "ctestCommandArgs": "",
+      "inheritEnvironments": [ "linux_x64" ],
+      "wslPath": "${defaultWSLPath}"
     }
   ]
 }
