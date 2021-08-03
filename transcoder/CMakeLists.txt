@@ -23,18 +23,18 @@ pkg_check_modules(GLIB_PKG REQUIRED IMPORTED_TARGET glib-2.0 gstreamer-pbutils-1
 
 add_subdirectory("sk-transcoder")
 
-#add_custom_target(amazon-s3-gst-plugin
-#  WORKING_DIRECTORY
-#    ${CMAKE_SOURCE_DIR}/amazon-s3-gst-plugin
-#  COMMENT
-#    "Amazon S3 Gst Plugin"
-#  VERBATIM
-#  )
 
 add_custom_command(
         OUTPUT  ${CMAKE_SOURCE_DIR}/amazon-s3-gst-plugin/build
         WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}/amazon-s3-gst-plugin
-        COMMAND  meson   ${CMAKE_SOURCE_DIR}/amazon-s3-gst-plugin/build
+        COMMAND  meson  build
         VERBATIM
 )
 
+add_custom_target(amazon-s3-gst-plugin
+  WORKING_DIRECTORY
+    ${CMAKE_SOURCE_DIR}/amazon-s3-gst-plugin
+  COMMENT
+    "Amazon S3 Gst Plugin"
+  VERBATIM
+  )

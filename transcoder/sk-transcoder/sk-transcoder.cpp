@@ -3,6 +3,85 @@
 #include "sk-transcoder.h"
 
 
+/* This function is called every time the discoverer has information regarding
+ * one of the URIs we provided.*/
+void on_discovered_cb(GstDiscoverer* discoverer, GstDiscovererInfo* info, GError* err, DiscovererData* data) {
+    GstDiscovererResult result;
+    const gchar* uri;
+    const GstTagList* tags;
+    GstDiscovererStreamInfo* sinfo;
+
+    uri = gst_discoverer_info_get_uri(info);
+    result = gst_discoverer_info_get_result(info);
+    switch (result) {
+    case GST_DISCOVERER_URI_INVALID:
+        g_print("Invalid URI '%s'\n", uri);
+        break;
+    case GST_DISCOVERER_ERROR:
+        g_print("Discoverer error: %s\n", err->message);
+        break;
+    case GST_DISCOVERER_TIMEOUT:
+        g_print("Timeout\n");
+        break;
+    case GST_DISCOVERER_BUSY:
+        g_print("Busy\n");
+        break;
+    case GST_DISCOVERER_MISSING_PLUGINS: {
+        const GstStructure* s;
+        gchar* str;
+
+        s = gst_discoverer_info_get_misc(info);
+        str = gst_structure_to_string(s);
+
+        g_print("Missing plugins: %s\n", str);
+        g_free(str);
+        break;
+    }
+    case GST_DISCOVERER_OK:
+        g_print("Discovered '%s'\n", uri);
+        break;
+    }
+
+    if (result != GST_DISCOVERER_OK) {
+        g_printerr("This URI cannot be played\n");
+        return;
+    }
+
+    /* If we got no error, show the retrieved information */
+
+    g_print("\nDuration: %" GST_TIME_FORMAT "\n", GST_TIME_ARGS(gst_discoverer_info_get_duration(info)));
+
+    tags = gst_discoverer_info_get_tags(info);
+    if (tags) {
+        g_print("Tags:\n");
+        gst_tag_list_foreach(tags, print_tag_foreach, GINT_TO_POINTER(1));
+    }
+
+    g_print("Seekable: %s\n", (gst_discoverer_info_get_seekable(info) ? "yes" : "no"));
+
+    g_print("\n");
+
+    sinfo = gst_discoverer_info_get_stream_info(info);
+    if (!sinfo)
+        return;
+
+    g_print("Stream information:\n");
+
+    print_topology(sinfo, 1);
+
+    gst_discoverer_stream_info_unref(sinfo);
+
+    g_print("\n");
+}
+
+/* This function is called when the discoverer has finished examining
+ * all the URIs we provided.*/
+void on_finished_cb(GstDiscoverer* discoverer, DiscovererData* data) {
+    g_print("Finished discovering\n");
+
+    g_main_loop_quit(data->loop);
+}
+
 int
 main(int argc, char* argv[])
 {
@@ -13,7 +92,9 @@ main(int argc, char* argv[])
 
 
 
-    gchar* uri = "https://www.freedesktop.org/software/gstreamer-sdk/data/media/sintel_trailer-480p.webm";
+    gchar const *uri = "https://www.freedesktop.org/software/gstreamer-sdk/data/media/sintel_trailer-480p.webm";
+    //"https://www.freedesktop.org/software/gstreamer-sdk/data/media/sintel_trailer-480p.webm";
+        //"https://rockthecradle.stream.publicradio.org/rockthecradle.mp3"; -- mp3 stream
 
     /* if a URI was provided, use it instead of the default one */
     if (argc > 1) {

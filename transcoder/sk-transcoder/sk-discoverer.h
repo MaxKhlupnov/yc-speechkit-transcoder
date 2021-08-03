@@ -10,12 +10,9 @@ typedef struct _DiscovererData {
 } DiscovererData;
 
 
-static void print_tag_foreach(const GstTagList* tags, const gchar* tag, gpointer user_data);
+void print_tag_foreach(const GstTagList* tags, const gchar* tag, gpointer user_data);
 
-static void print_stream_info(GstDiscovererStreamInfo* info, gint depth);
+void print_stream_info(GstDiscovererStreamInfo* info, gint depth);
 
-static void print_topology(GstDiscovererStreamInfo* info, gint depth);
+void print_topology(GstDiscovererStreamInfo* info, gint depth);
 
-void on_discovered_cb(GstDiscoverer* discoverer, GstDiscovererInfo* info, GError* err, DiscovererData* data);
-
-void on_finished_cb(GstDiscoverer* discoverer, DiscovererData* data);
