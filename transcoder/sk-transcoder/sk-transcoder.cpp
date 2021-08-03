@@ -82,17 +82,54 @@ void on_finished_cb(GstDiscoverer* discoverer, DiscovererData* data) {
     g_main_loop_quit(data->loop);
 }
 
+static gboolean
+bus_call(GstBus* bus,
+    GstMessage* msg,
+    gpointer    data)
+{
+    GMainLoop* loop = (GMainLoop*) data;
+
+    switch (GST_MESSAGE_TYPE(msg)) {
+    case GST_MESSAGE_EOS:
+        g_print("End-of-stream\n");
+        g_main_loop_quit(loop);
+        break;
+    case GST_MESSAGE_ERROR: {
+        gchar* debug = NULL;
+        GError* err = NULL;
+
+        gst_message_parse_error(msg, &err, &debug);
+
+        g_print("Error: %s\n", err->message);
+        g_error_free(err);
+
+        if (debug) {
+            g_print("Debug details: %s\n", debug);
+            g_free(debug);
+        }
+
+        g_main_loop_quit(loop);
+        break;
+    }
+    default:
+        break;
+    }
+
+    return TRUE;
+}
+
 int
 main(int argc, char* argv[])
 {
-    GstElement* pipeline;
     GstBus* bus;
     GstMessage* msg;
     GError* err = NULL;
 
+    
 
-
-    gchar const *uri = "https://www.freedesktop.org/software/gstreamer-sdk/data/media/sintel_trailer-480p.webm";
+    gchar const* uri = "https://storage.yandexcloud.net/m24-speech/01%20Back%20in%20Black.mp3";
+        //"https://storage.yandexcloud.net/audio-data/BrandAnalytics/2021-05-03-osoboe-1907-sd-3448912.wav";
+        //"https://www.freedesktop.org/software/gstreamer-sdk/data/media/sintel_trailer-480p.webm";
     //"https://www.freedesktop.org/software/gstreamer-sdk/data/media/sintel_trailer-480p.webm";
         //"https://rockthecradle.stream.publicradio.org/rockthecradle.mp3"; -- mp3 stream
 
@@ -131,38 +168,138 @@ main(int argc, char* argv[])
         return -1;
     }
 
-    /* Create a GLib Main Loop and set it to run, so we can wait for the signals */
+    
+
+    /*
+    STOP 4 DEBUG
+    
+    Create a GLib Main Loop and set it to run, so we can wait for the signals */
     discovery.loop = g_main_loop_new(NULL, FALSE);
     g_main_loop_run(discovery.loop);
 
     /* Stop the discoverer process */
     gst_discoverer_stop(discovery.discoverer);
 
-    /* Free resources */
+    /* Free discoverer resources */
     g_object_unref(discovery.discoverer);
     g_main_loop_unref(discovery.loop);
 
-    return 0;
+    GMainLoop* loop;
+    loop = g_main_loop_new(NULL, FALSE);
 
     /* Build the pipeline */
-    pipeline =
-        gst_parse_launch
-        ("souphttpsrc location=https://www.freedesktop.org/software/gstreamer-sdk/data/media/sintel_trailer-480p.webm ! filesink location=/home/makhlu/sintel_trailer-480p.webm",
-            NULL);
+    GstElement *pipeline, *urlsrc, *decoder, * resample, * sink;
+    GstElement *encoder, *media_convert, * capsfilter;
 
-    /* Start playing */
-    gst_element_set_state(pipeline, GST_STATE_PLAYING);
+    pipeline = gst_pipeline_new("speechkit_pipeline");
 
-    /* Wait until error or EOS */
-    bus = gst_element_get_bus(pipeline);
-    msg =
-        gst_bus_timed_pop_filtered(bus, GST_CLOCK_TIME_NONE, static_cast<GstMessageType>(GST_MESSAGE_ERROR | GST_MESSAGE_EOS));
+    /* watch for messages on the pipeline's bus (note that this will only
+   * work like this when a GLib main loop is running) */
+    guint watch_id;
+    bus = gst_pipeline_get_bus(GST_PIPELINE(pipeline));
+
+    watch_id = gst_bus_add_watch(bus, bus_call, loop);
+    gst_object_unref(bus);
+
+    urlsrc = gst_element_factory_make("souphttpsrc", "media_source");
+    decoder = gst_element_factory_make("decodebin", "media_decoder");
+
+
+    /* putting an audioconvert element here to convert the output of the
+   * decoder into a format that my_filter can handle (we are assuming it
+   * will handle any sample rate here though) */
+   
+        media_convert = gst_element_factory_make("audioconvert", "media_convert");
+
+        resample = gst_element_factory_make("audioresample", "media_resampler");
+      /*  g_object_set(G_OBJECT(resample),
+            "quality", 10, NULL);*/
+
+        capsfilter = gst_element_factory_make("capsfilter", "caps_filter");
+       /* g_object_set(G_OBJECT(capsfilter),
+            "caps","audio/x-raw,format=S16LE,channels=1,rate=16000", NULL);*/
+
+        encoder = gst_element_factory_make("wavenc", "encoder");
+
+        sink = gst_element_factory_make("s3sink", "sink");       
+       g_object_set(G_OBJECT(sink),
+        //   "aws-credentials", "access-key-id=IVztEFxxxxxx|secret-access-key=Abo9xxxxxxx",
+           "bucket", "s3-gst-plugin",
+           "aws-sdk-endpoint", "storage.yandexcloud.net:443",
+           "content-type","audio/wav",
+           "key", "out.wav",
+           NULL);
+        
+            
+
+    if (!sink ) {
+        g_print("S3 output could not be found - check your install\n");
+        return -1;
+    }
+    else if (!media_convert || !capsfilter) {
+        g_print("Could not create audioconvert or audioresample element, "
+            "check your installation\n");
+        return -1;
+    }
+
+    g_object_set(G_OBJECT(urlsrc), "location", uri, NULL);
+
+
+    gst_bin_add_many(GST_BIN(pipeline), urlsrc, sink, NULL);//media_convert, resample,
+
+    /*we link the elements together* /
+    /* souphttpsrc -> ogg-demuxer ~> filesink 
+    gst_element_link(urlsrc, sink);
+    if (!gst_element_link(urlsrc, decoder)) {
+        g_print("Failed to link src and decoder!\n");
+        return -1;
+    }*/
+    
+
+    /* link everything together */
+    if (!gst_element_link_many(urlsrc,  sink, NULL)) {//pmedia_convert, resample,
+        g_print("Failed to link one or more elements!\n");
+        return -1;
+    }
+
+    /* run */
+    GstStateChangeReturn ret;
+    ret = gst_element_set_state(pipeline, GST_STATE_PLAYING);
+  
+    if (ret == GST_STATE_CHANGE_FAILURE) {
+        GstMessage* msg;
+
+        g_print("Failed to start up pipeline!\n");
+
+        /* check if there is an error message with details on the bus */
+        msg = gst_bus_poll(bus, GST_MESSAGE_ERROR, 0);
+        if (msg) {
+            GError* err = NULL;
+
+            gst_message_parse_error(msg, &err, NULL);
+            g_print("ERROR: %s\n", err->message);
+            g_error_free(err);
+            gst_message_unref(msg);
+        }
+        return -1;
+    }
+
+    /* Iterate */
+    g_print("Running...\n");
+    g_main_loop_run(loop);
+
+
+    /* Out of the main loop, clean up nicely */
+    g_print("Returned, stopping...\n");
+
 
     /* Free resources */
-    if (msg != NULL)
-        gst_message_unref(msg);
-    gst_object_unref(bus);
     gst_element_set_state(pipeline, GST_STATE_NULL);
+    g_print("Deleting pipeline\n");
     gst_object_unref(pipeline);
+    g_source_remove(watch_id);
+    g_main_loop_unref(loop);
+
+    
     return 0;
 }
