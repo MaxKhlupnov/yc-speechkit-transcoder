@@ -19,25 +19,37 @@ find_package(gRPC CONFIG REQUIRED)
 
 include_directories(${Protobuf_INCLUDE_DIRS})
 
-include_directories(${CMAKE_CURRENT_BINARY_DIR})
+include_directories(${CMAKE_CURRENT_SOURCE_DIR})
 
-set(Protobuf_IMPORT_DIRS ${Protobuf_IMPORT_DIRS} ${CMAKE_SOURCE_DIR}/yandex-cloud-api  ${CMAKE_SOURCE_DIR}/yandex-cloud-api/third_party/googleapis/)
+file(GLOB protobuf_files 
+			${CMAKE_SOURCE_DIR}/yandex-cloud-api/yandex/cloud/ai/stt/v2/*.proto
+			${CMAKE_SOURCE_DIR}/yandex-cloud-api/yandex/cloud/operation/*.proto
+			${CMAKE_SOURCE_DIR}/yandex-cloud-api/yandex/cloud/api/*.proto
+			${CMAKE_SOURCE_DIR}/yandex-cloud-api/third_party/googleapis/google/api/*.proto
+			${CMAKE_SOURCE_DIR}/yandex-cloud-api/third_party/googleapis/google/rpc/*.proto
+			${CMAKE_SOURCE_DIR}/yandex-cloud-api/third_party/googleapis/google/type/*.proto
+			)
 
-set(Protobuf_INCLUDE_DIRS ${Protobuf_INCLUDE_DIRS} ${CMAKE_CURRENT_BINARY_DIR}    CACHE INTERNAL "Path to generated protobuf files.")
+# compile each file in turn, and then generate the pb.cc And. pb.h move back to the original directory
+FOREACH(proto ${protobuf_files})
+		
+		FILE(TO_NATIVE_PATH ${proto} proto_native)
+		
+		EXECUTE_PROCESS(
+				COMMAND ${PROTOBUF_PROTOC_EXECUTABLE} -I "${CMAKE_SOURCE_DIR}/yandex-cloud-api/third_party/googleapis/" -I "${CMAKE_SOURCE_DIR}/yandex-cloud-api/" --cpp_out=${CMAKE_CURRENT_SOURCE_DIR} "${proto_native}"
+				RESULT_VARIABLE rv)
 
-protobuf_generate_cpp(stt_service_proto_src stt_service_proto_hdrs ${CMAKE_SOURCE_DIR}/yandex-cloud-api/yandex/cloud/ai/stt/v2/stt_service.proto)
-#protobuf_generate_cpp(annotation_src annotation_hdrs ${CMAKE_SOURCE_DIR}/yandex-cloud-api/third_party/googleapis/google/api/annotations.proto)
+		 IF(${rv})
+			MESSAGE("Generation of data model returned ${rv} for proto ${proto_native}")
+		 ENDIF()
 
+ENDFOREACH()
 
 # Add source to this project's executable.
-add_executable (sk-transcoder "sk-discoverer.cpp" "sk-transcoder.cpp"  ${stt_service_proto_src} ${stt_service_proto_hdrs})
+add_executable (sk-transcoder "sk-discoverer.cpp" "sk-transcoder.cpp")
 
 target_link_libraries(sk-transcoder PUBLIC PkgConfig::GLIB_PKG ${GSTREAMER_LIBRARIES})
 
-message("   --> PROTOBUF LIB: ${PROTOBUF_LIBRARIES}")
-message("   --> PROTOBUF INCLUDE: ${PROTOBUF_INCLUDE_DIRS}")
-message("   --> PROTOBUF VERSION: ${Protobuf_VERSION}")
-message("   --> PROTOBUF Found: ${Protobuf_FOUND}")
 # DEBUG PRINT
 #get_cmake_property(_variableNames VARIABLES)
 #list (SORT _variableNames)

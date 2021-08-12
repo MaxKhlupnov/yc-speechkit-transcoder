@@ -24,7 +24,7 @@ include_directories("/usr/include/gstreamer-1.0/" "/usr/include/glib-2.0/"
 # these calls create special `PkgConfig::<MODULE>` variables
 pkg_check_modules(GLIB_PKG REQUIRED IMPORTED_TARGET glib-2.0 gstreamer-pbutils-1.0)
 
-add_subdirectory("amazon-s3-gst-plugin/src")
+# add_subdirectory("amazon-s3-gst-plugin/src")
 
 add_subdirectory("sk-transcoder")
 
