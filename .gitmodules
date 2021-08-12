@@ -4,3 +4,6 @@
 [submodule "transcoder/--force"]
 	path = transcoder/--force
 	url = https://github.com/MaxKhlupnov/amazon-s3-gst-plugin
+[submodule "transcoder/yandex-cloud-api"]
+	path = transcoder/yandex-cloud-api
+	url = https://github.com/yandex-cloud/cloudapi
