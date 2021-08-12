@@ -348,3 +348,7 @@ MigrationBackup/
 
 # Ionide (cross platform F# VS Code tools) working folder
 .ionide/
+/transcoder/sk-transcoder/out/build
+/transcoder/out/build
+/cmake.txt
+/packages.txt

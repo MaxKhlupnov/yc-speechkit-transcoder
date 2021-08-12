@@ -27,5 +27,10 @@ WORKDIR $SK_HOME/grpc
 RUN git submodule update --init
 # Build and install protobuf
 RUN cmake . && \
-    make  && \
-    make install
+    make
+RUN make install
+
+WORKDIR $SK_HOME 
+RUN rm -r grpc
+
+RUN apt-get autoremove --purge
