@@ -14,15 +14,28 @@ pkg_check_modules(GLIB_PKG REQUIRED IMPORTED_TARGET glib-2.0 gstreamer-aws-1.0)
 #   Protobuf
 ########################################################################
 find_package(Protobuf REQUIRED)
+# gRPC
 find_package(gRPC CONFIG REQUIRED)
+message(STATUS "Using gRPC ${gRPC_VERSION}")
 
+# gRPC C++ plugin
+#get_target_property(grpc_cpp_plugin_location gRPC::grpc_cpp_plugin LOCATION) #get plugin location
+get_target_property(gRPC_CPP_PLUGIN_EXECUTABLE gRPC::grpc_cpp_plugin
+    LOCATION)
+#get_target_property(gRPC_CPP_PLUGIN_EXECUTABLE gRPC::grpc_cpp_plugin
+#    IMPORTED_LOCATION_RELEASE)
+
+find_package(Threads)
 
 include_directories(${Protobuf_INCLUDE_DIRS})
+# include_directories("/usr/local/include")
 
 include_directories(${CMAKE_CURRENT_SOURCE_DIR})
 
+#######################################################################################################################
+# Generate protobuf files
+######################################################################################################################
 file(GLOB protobuf_files 
-			${CMAKE_SOURCE_DIR}/yandex-cloud-api/yandex/cloud/ai/stt/v2/*.proto
 			${CMAKE_SOURCE_DIR}/yandex-cloud-api/yandex/cloud/operation/*.proto
 			${CMAKE_SOURCE_DIR}/yandex-cloud-api/yandex/cloud/api/*.proto
 			${CMAKE_SOURCE_DIR}/yandex-cloud-api/third_party/googleapis/google/api/*.proto
@@ -34,7 +47,7 @@ file(GLOB protobuf_files
 FOREACH(proto ${protobuf_files})
 		
 		FILE(TO_NATIVE_PATH ${proto} proto_native)
-		
+
 		EXECUTE_PROCESS(
 				COMMAND ${PROTOBUF_PROTOC_EXECUTABLE} -I "${CMAKE_SOURCE_DIR}/yandex-cloud-api/third_party/googleapis/" -I "${CMAKE_SOURCE_DIR}/yandex-cloud-api/" --cpp_out=${CMAKE_CURRENT_SOURCE_DIR} "${proto_native}"
 				RESULT_VARIABLE rv)
@@ -42,13 +55,31 @@ FOREACH(proto ${protobuf_files})
 		 IF(${rv})
 			MESSAGE("Generation of data model returned ${rv} for proto ${proto_native}")
 		 ENDIF()
-
+		 # 
 ENDFOREACH()
+
+#######################################################################################################################
+# Generate grpc services
+######################################################################################################################
+FILE(TO_NATIVE_PATH "${CMAKE_SOURCE_DIR}/yandex-cloud-api/yandex/cloud/ai/stt/v2/stt_service.proto" grpc_svc_proto_native)
+message("Generate grpc & proto file for service -> ${grpc_svc_proto_native}")
+		
+		# message("${PROTOBUF_PROTOC_EXECUTABLE} -I \"${CMAKE_SOURCE_DIR}/yandex-cloud-api/third_party/googleapis/\" -I \"${CMAKE_SOURCE_DIR}/yandex-cloud-api/\" --grpc_out=\"${CMAKE_CURRENT_SOURCE_DIR}\"  --cpp_out=${CMAKE_CURRENT_SOURCE_DIR} --plugin=protoc-gen-grpc=\"${gRPC_CPP_PLUGIN_EXECUTABLE}\" \"${grpc_svc_proto_native}\"")
+
+EXECUTE_PROCESS(
+		COMMAND ${PROTOBUF_PROTOC_EXECUTABLE} -I "${CMAKE_SOURCE_DIR}/yandex-cloud-api/third_party/googleapis/" -I "${CMAKE_SOURCE_DIR}/yandex-cloud-api/" --cpp_out=${CMAKE_CURRENT_SOURCE_DIR} --grpc_out=${CMAKE_CURRENT_SOURCE_DIR} --plugin=protoc-gen-grpc=${gRPC_CPP_PLUGIN_EXECUTABLE} "${grpc_svc_proto_native}"
+		RESULT_VARIABLE rv)
+
+IF(${rv})
+MESSAGE("Generation of data model returned ${rv} for grpc ${grpc_svc_native}")
+ENDIF()
+
+
 
 # Add source to this project's executable.
 add_executable (sk-transcoder "sk-discoverer.cpp" "sk-transcoder.cpp")
 
-target_link_libraries(sk-transcoder PUBLIC PkgConfig::GLIB_PKG ${GSTREAMER_LIBRARIES})
+target_link_libraries(sk-transcoder PUBLIC PkgConfig::GLIB_PKG ${GSTREAMER_LIBRARIES} gRPC::grpc++_unsecure protobuf::libprotobuf)
 
 # DEBUG PRINT
 #get_cmake_property(_variableNames VARIABLES)
