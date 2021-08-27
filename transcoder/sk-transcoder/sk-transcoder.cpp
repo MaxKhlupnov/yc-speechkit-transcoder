@@ -2,6 +2,24 @@
 #include <gst/pbutils/pbutils.h>
 #include "sk-transcoder.h"
 
+// gRPC call
+
+#include <iostream>
+#include <string>
+#include <thread>
+#include <grpcpp/grpcpp.h>
+#include "yandex/cloud/ai/stt/v2/stt_service.grpc.pb.h"
+#include "yandex/cloud/ai/stt/v2/stt_service.pb.h"
+/*#include <grpcpp/channel.h>
+#include <grpcpp/client_context.h>
+#include <grpcpp/create_channel.h>*/
+
+using yandex::cloud::ai::stt::v2::LongRunningRecognitionRequest;
+using yandex::cloud::ai::stt::v2::LongRunningRecognitionResponse;
+using yandex::cloud::ai::stt::v2::SttService;
+
+using grpc::CreateChannel;
+using grpc::GoogleDefaultCredentials;
 
 /* This function is called every time the discoverer has information regarding
  * one of the URIs we provided.*/
@@ -118,21 +136,32 @@ bus_call(GstBus* bus,
     return TRUE;
 }
 
-int
-main(int argc, char* argv[])
+
+void run_recognition_task() {
+   // auto creds = grpc::GoogleDefaultCredentials();
+    auto channel = grpc::CreateChannel("stt.api.cloud.yandex.net:443", grpc::InsecureChannelCredentials());
+    std::unique_ptr<SttService::Stub> speech(SttService::NewStub(channel));
+}
+
+int main(int argc, char* argv[])
 {
+
+    run_recognition_task();
+
     GstBus* bus;
     GstMessage* msg;
     GError* err = NULL;
 
     
 
-    gchar const* uri = "https://rockthecradle.stream.publicradio.org/rockthecradle.mp3"; //--mp3 stream
-        //"https://storage.yandexcloud.net/m24-speech/01%20Back%20in%20Black.mp3";
+   // gchar const* uri = "https://storage.yandexcloud.net/m24-speech/01%20Back%20in%20Black.mp3";
+        // "https://rockthecradle.stream.publicradio.org/rockthecradle.mp3"; --mp3 stream
+        //
         //"https://storage.yandexcloud.net/audio-data/BrandAnalytics/2021-05-03-osoboe-1907-sd-3448912.wav";
         //"https://www.freedesktop.org/software/gstreamer-sdk/data/media/sintel_trailer-480p.webm";
     //"https://www.freedesktop.org/software/gstreamer-sdk/data/media/sintel_trailer-480p.webm";
-        
+    
+    std::string uri = "https://storage.yandexcloud.net/m24-speech/01%20Back%20in%20Black.mp3";;
 
     /* if a URI was provided, use it instead of the default one */
     if (argc > 1) {
@@ -145,7 +174,7 @@ main(int argc, char* argv[])
     /* Initialize GStreamer */
     gst_init(&argc, &argv);
 
-    g_print("Discovering '%s'\n", uri);
+    g_print("Discovering '%s'\n", uri.c_str());
 
     /* Instantiate the Discoverer */
     discovery.discoverer = gst_discoverer_new(5 * GST_SECOND, &err);
@@ -163,8 +192,8 @@ main(int argc, char* argv[])
     gst_discoverer_start(discovery.discoverer);
 
     /* Add a request to process asynchronously the URI passed through the command line */
-    if (!gst_discoverer_discover_uri_async(discovery.discoverer, uri)) {
-        g_print("Failed to start discovering URI '%s'\n", uri);
+    if (!gst_discoverer_discover_uri_async(discovery.discoverer, uri.c_str())) {
+        g_print("Failed to start discovering URI '%s'\n", uri.c_str());
         g_object_unref(discovery.discoverer);
         return -1;
     }
@@ -186,10 +215,10 @@ main(int argc, char* argv[])
     GMainLoop* loop;
     loop = g_main_loop_new(NULL, FALSE);
 
+    std::string str_pipeline = "souphttpsrc location = \"" + uri 
+        + "\" !decodebin !audioconvert !audioresample  quality = 10 !capsfilter caps = \"audio/x-raw,format=S16LE,channels=1,rate=16000\" ! wavenc ! s3sink bucket=\"s3-gst-plugin\"  key=\"audio.wav\" aws-sdk-endpoint=\"storage.yandexcloud.net:443\" content-type=\"audio/wav\"";
 
-    GstElement* pipeline =  gst_parse_launch
-    ("souphttpsrc location = \"https://rockthecradle.stream.publicradio.org/rockthecradle.mp3\" ! decodebin ! audioconvert ! audioresample  quality=10 ! capsfilter caps =\"audio/x-raw,format=S16LE,channels=1,rate=16000\" ! wavenc ! s3sink bucket=\"s3-gst-plugin\"  key=\"audio.wav\" aws-sdk-endpoint=\"storage.yandexcloud.net:443\" content-type=\"audio/wav\"",
-        NULL);
+    GstElement* pipeline =  gst_parse_launch(str_pipeline.c_str(), NULL);
 
     guint watch_id;
     bus = gst_pipeline_get_bus(GST_PIPELINE(pipeline));

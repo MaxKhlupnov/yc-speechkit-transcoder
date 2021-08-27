@@ -38,6 +38,7 @@ include_directories(${CMAKE_CURRENT_SOURCE_DIR})
 file(GLOB protobuf_files 
 			${CMAKE_SOURCE_DIR}/yandex-cloud-api/yandex/cloud/operation/*.proto
 			${CMAKE_SOURCE_DIR}/yandex-cloud-api/yandex/cloud/api/*.proto
+			${CMAKE_SOURCE_DIR}/yandex-cloud-api/yandex/cloud/*.proto
 			${CMAKE_SOURCE_DIR}/yandex-cloud-api/third_party/googleapis/google/api/*.proto
 			${CMAKE_SOURCE_DIR}/yandex-cloud-api/third_party/googleapis/google/rpc/*.proto
 			${CMAKE_SOURCE_DIR}/yandex-cloud-api/third_party/googleapis/google/type/*.proto
@@ -60,8 +61,9 @@ FOREACH(proto ${protobuf_files})
 	
 				#string(CONCAT PROTO_SRCS ${PROTO_SRCS} " " ${CMAKE_SOURCE_DIR} ${proto_file_out_path} ${proto_file_name} ".pb.cc")
 				set(PROTO_SRCS "${CMAKE_CURRENT_SOURCE_DIR}${proto_file_out_path}${proto_file_name}.pb.cc")
-				set(PROTO_HDRS "${CMAKE_CURRENT_SOURCE_DIR}}${proto_file_out_path}${proto_file_name}.pb.h")
+				set(PROTO_HDRS "${CMAKE_CURRENT_SOURCE_DIR}${proto_file_out_path}${proto_file_name}.pb.h")
 				list(APPEND protobuf_cc_src ${PROTO_SRCS})
+				list(APPEND protobuf_h_src ${PROTO_HDRS})
 
 				MESSAGE("protobuf_cc_src-> ${protobuf_cc_src} \nPROTO_SRCS -> ${PROTO_SRCS} \nPROTO_HDRS -> ${PROTO_HDRS} \nSRC_DIR->${CMAKE_CURRENT_SOURCE_DIR}")
 				
@@ -90,7 +92,7 @@ ENDIF()
 
 
 # Add source to this project's executable.
-add_executable (sk-transcoder "sk-discoverer.cpp" "sk-transcoder.cpp" "yandex/cloud/ai/stt/v2/stt_service.grpc.pb.cc" "yandex/cloud/ai/stt/v2/stt_service.pb.cc" ${protobuf_cc_src})
+add_executable (sk-transcoder "sk-discoverer.cpp" "sk-transcoder.cpp" "yandex/cloud/ai/stt/v2/stt_service.grpc.pb.cc" "yandex/cloud/ai/stt/v2/stt_service.pb.cc" ${protobuf_cc_src} ${protobuf_h_src})
 
 target_link_libraries(sk-transcoder PUBLIC PkgConfig::GLIB_PKG ${GSTREAMER_LIBRARIES} gRPC::grpc++_unsecure protobuf::libprotobuf)
 
