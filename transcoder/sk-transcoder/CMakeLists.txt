@@ -36,6 +36,7 @@ include_directories(${CMAKE_CURRENT_SOURCE_DIR})
 # Generate protobuf files
 ######################################################################################################################
 file(GLOB protobuf_files 
+			${CMAKE_SOURCE_DIR}/yandex-cloud-api/yandex/cloud/ai/stt/v2/*.proto
 			${CMAKE_SOURCE_DIR}/yandex-cloud-api/yandex/cloud/operation/*.proto
 			${CMAKE_SOURCE_DIR}/yandex-cloud-api/yandex/cloud/api/*.proto
 			${CMAKE_SOURCE_DIR}/yandex-cloud-api/yandex/cloud/*.proto
@@ -58,7 +59,7 @@ FOREACH(proto ${protobuf_files})
 		EXECUTE_PROCESS(
 				COMMAND ${PROTOBUF_PROTOC_EXECUTABLE} -I "${CMAKE_SOURCE_DIR}/yandex-cloud-api/third_party/googleapis/" -I "${CMAKE_SOURCE_DIR}/yandex-cloud-api/" --cpp_out=${CMAKE_CURRENT_SOURCE_DIR} "${proto_native}"
 				RESULT_VARIABLE rv)
-	
+
 				#string(CONCAT PROTO_SRCS ${PROTO_SRCS} " " ${CMAKE_SOURCE_DIR} ${proto_file_out_path} ${proto_file_name} ".pb.cc")
 				set(PROTO_SRCS "${CMAKE_CURRENT_SOURCE_DIR}${proto_file_out_path}${proto_file_name}.pb.cc")
 				set(PROTO_HDRS "${CMAKE_CURRENT_SOURCE_DIR}${proto_file_out_path}${proto_file_name}.pb.h")
@@ -76,23 +77,41 @@ ENDFOREACH()
 #######################################################################################################################
 # Generate grpc services
 ######################################################################################################################
-FILE(TO_NATIVE_PATH "${CMAKE_SOURCE_DIR}/yandex-cloud-api/yandex/cloud/ai/stt/v2/stt_service.proto" grpc_svc_proto_native)
-message("Generate grpc & proto file for service -> ${grpc_svc_proto_native}")
-		
-		# message("${PROTOBUF_PROTOC_EXECUTABLE} -I \"${CMAKE_SOURCE_DIR}/yandex-cloud-api/third_party/googleapis/\" -I \"${CMAKE_SOURCE_DIR}/yandex-cloud-api/\" --grpc_out=\"${CMAKE_CURRENT_SOURCE_DIR}\"  --cpp_out=${CMAKE_CURRENT_SOURCE_DIR} --plugin=protoc-gen-grpc=\"${gRPC_CPP_PLUGIN_EXECUTABLE}\" \"${grpc_svc_proto_native}\"")
+file(GLOB grpc_files
+		${CMAKE_SOURCE_DIR}/yandex-cloud-api/yandex/cloud/ai/stt/v2/stt_service.proto
+		${CMAKE_SOURCE_DIR}/yandex-cloud-api/yandex/cloud/operation/operation_service.proto
+)
 
-EXECUTE_PROCESS(
-		COMMAND ${PROTOBUF_PROTOC_EXECUTABLE} -I "${CMAKE_SOURCE_DIR}/yandex-cloud-api/third_party/googleapis/" -I "${CMAKE_SOURCE_DIR}/yandex-cloud-api/" --cpp_out=${CMAKE_CURRENT_SOURCE_DIR} --grpc_out=${CMAKE_CURRENT_SOURCE_DIR} --plugin=protoc-gen-grpc=${gRPC_CPP_PLUGIN_EXECUTABLE} "${grpc_svc_proto_native}"
-		RESULT_VARIABLE rv)
+FOREACH(grpc ${grpc_files})
 
-IF(${rv})
-MESSAGE("Generation of data model returned ${rv} for grpc ${grpc_svc_native}")
-ENDIF()
+	FILE(TO_NATIVE_PATH ${grpc} grpc_native)
+	message("Generate grpc  file for service -> ${grpc_native}")
+	GET_FILENAME_COMPONENT(grpc_file_name ${grpc_native} NAME_WE)
+
+	string(REGEX REPLACE "(.+)\\${grpc_file_name}.*" "\\1" grpc_file_path ${grpc})
+	string(REGEX MATCH "(/yandex/cloud/.*)" grpc_file_out_path ${grpc_file_path})
+	MESSAGE("grpc_file_name -> ${grpc_native} grpc_file_out_path -> ${grpc_file_out_path}")
+
+	EXECUTE_PROCESS(
+			COMMAND ${PROTOBUF_PROTOC_EXECUTABLE} -I "${CMAKE_SOURCE_DIR}/yandex-cloud-api/third_party/googleapis/" -I "${CMAKE_SOURCE_DIR}/yandex-cloud-api/" --grpc_out=${CMAKE_CURRENT_SOURCE_DIR} --plugin=protoc-gen-grpc=${gRPC_CPP_PLUGIN_EXECUTABLE} "${grpc_native}"
+			RESULT_VARIABLE rv)
+
+	set(GRPC_SRCS "${CMAKE_CURRENT_SOURCE_DIR}${grpc_file_out_path}${grpc_file_name}.grpc.pb.cc")
+	set(GRPC_HDRS "${CMAKE_CURRENT_SOURCE_DIR}${grpc_file_out_path}${grpc_file_name}.grpc.pb.h")
+	list(APPEND grpc_cc_src ${GRPC_SRCS})
+	list(APPEND grpc_h_src ${GRPC_HDRS}) 
+
+	MESSAGE("grpc_cc_src-> ${grpc_cc_src} \nGRPC_SRCS -> ${GRPC_SRCS} \nGRPC_HDRS -> ${GRPC_HDRS} \nSRC_DIR->${CMAKE_CURRENT_SOURCE_DIR}")
+
+	IF(${rv})
+		MESSAGE("Generation of grpc service model returned ${rv} for proto ${grpc_svc_native}")
+	ENDIF()
 
 
+ENDFOREACH()
 
 # Add source to this project's executable.
-add_executable (sk-transcoder "sk-discoverer.cpp" "sk-transcoder.cpp" "yandex/cloud/ai/stt/v2/stt_service.grpc.pb.cc" "yandex/cloud/ai/stt/v2/stt_service.pb.cc" ${protobuf_cc_src} ${protobuf_h_src})
+add_executable (sk-transcoder "sk-discoverer.cpp" "sk-transcoder.cpp" ${grpc_cc_src} ${grpc_h_src} ${protobuf_cc_src} ${protobuf_h_src})
 
 target_link_libraries(sk-transcoder PUBLIC PkgConfig::GLIB_PKG ${GSTREAMER_LIBRARIES} gRPC::grpc++_unsecure protobuf::libprotobuf)
 
