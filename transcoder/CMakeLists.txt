@@ -26,7 +26,12 @@ pkg_check_modules(GLIB_PKG REQUIRED IMPORTED_TARGET glib-2.0 gstreamer-pbutils-1
 
 # add_subdirectory("amazon-s3-gst-plugin/src")
 
+add_subdirectory("speechkit-tts-gst-plugin/src")
+
+#add_subdirectory("sk-gst-app")
+
 add_subdirectory("sk-transcoder")
+
 
 ########################################################################
 #   Build docker

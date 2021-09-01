@@ -7,19 +7,30 @@
 #include <iostream>
 #include <string>
 #include <thread>
-#include <grpcpp/grpcpp.h>
+#include <sstream>
+
+
+#include "yandex/cloud/operation/operation_service.grpc.pb.h"
 #include "yandex/cloud/ai/stt/v2/stt_service.grpc.pb.h"
 #include "yandex/cloud/ai/stt/v2/stt_service.pb.h"
-/*#include <grpcpp/channel.h>
+#include <grpcpp/channel.h>
 #include <grpcpp/client_context.h>
-#include <grpcpp/create_channel.h>*/
+#include <grpcpp/security/credentials.h>
+#include <grpcpp/create_channel.h>
 
 using yandex::cloud::ai::stt::v2::LongRunningRecognitionRequest;
 using yandex::cloud::ai::stt::v2::LongRunningRecognitionResponse;
+using yandex::cloud::ai::stt::v2::RecognitionSpec;
+using yandex::cloud::ai::stt::v2::RecognitionSpec_AudioEncoding;
+using yandex::cloud::ai::stt::v2::RecognitionConfig;
+using yandex::cloud::ai::stt::v2::RecognitionAudio;
+using yandex::cloud::operation::Operation;
+// services
 using yandex::cloud::ai::stt::v2::SttService;
+using yandex::cloud::operation::OperationService;
 
 using grpc::CreateChannel;
-using grpc::GoogleDefaultCredentials;
+using grpc::SslCredentials;
 
 /* This function is called every time the discoverer has information regarding
  * one of the URIs we provided.*/
@@ -136,17 +147,124 @@ bus_call(GstBus* bus,
     return TRUE;
 }
 
+grpc::ClientContext* make_asr_client_context(){
 
-void run_recognition_task() {
-   // auto creds = grpc::GoogleDefaultCredentials();
-    auto channel = grpc::CreateChannel("stt.api.cloud.yandex.net:443", grpc::InsecureChannelCredentials());
-    std::unique_ptr<SttService::Stub> speech(SttService::NewStub(channel));
+    grpc::ClientContext* context = new grpc::ClientContext();
+    std::string str_bearer = "Bearer t1.";
+    context->AddMetadata("authorization", str_bearer.c_str());
+    context->AddMetadata("x-data-logging-enabled", "true");
+    return context;
 }
+
+const char* make_asr_task(std::unique_ptr<SttService::Stub> speech) {
+
+    const char* language_code = "ru-RU";
+    const char* model = "general";
+
+    RecognitionSpec* asr_spec = new RecognitionSpec();
+    asr_spec->set_language_code(language_code);
+    asr_spec->set_audio_encoding(RecognitionSpec_AudioEncoding::RecognitionSpec_AudioEncoding_OGG_OPUS);
+    asr_spec->set_sample_rate_hertz(48000);
+    asr_spec->set_model(model);
+    asr_spec->set_partial_results(false);
+
+    // init recognition config
+    RecognitionConfig* asr_config = new RecognitionConfig();
+    asr_config->set_allocated_specification(asr_spec);
+
+    // init audio config
+    std::string uri = "https://storage.yandexcloud.net/vera/filipp.wav";
+    RecognitionAudio* asr_audio = new RecognitionAudio();
+    asr_audio->set_allocated_uri(&uri);
+
+    LongRunningRecognitionRequest request{};
+    request.set_allocated_audio(asr_audio);
+    request.set_allocated_config(asr_config);
+
+    Operation* op = new Operation();
+
+    grpc::ClientContext* con = make_asr_client_context();
+
+
+    grpc::Status rpc_status = speech->LongRunningRecognize (con, request, op);//(context, request, op);
+    const char* asr_task_id;
+    if (!rpc_status.ok()) {
+        g_print("RPC status '%d'\n", rpc_status.error_code());
+        g_print("RPC error message: '%s'\n", rpc_status.error_message().c_str());
+
+    }else{
+        asr_task_id = op->id().c_str();
+        g_print("RPC call completed successfully. asr_task_id '%s'\n", op->id().c_str());
+    }
+
+    request.release_config();
+    request.release_audio();
+
+    // release resources
+    if (asr_audio != NULL){
+        asr_audio->release_uri();
+    }
+
+    if (asr_config != NULL){
+        asr_config->release_folder_id();
+        asr_config->release_specification();
+    }
+    return asr_task_id;
+
+}
+
+void collect_asr_task_result(std::unique_ptr<OperationService::Stub> asr_task_processing, const char* asr_task_id, LongRunningRecognitionResponse* asr_task_response){
+
+    yandex::cloud::operation::GetOperationRequest asr_task_result_request{};
+    asr_task_result_request.set_operation_id(asr_task_id);
+
+
+    Operation* op = new Operation();
+    while(!op->done()){
+
+        g_print("Waiting for asr task '%s' to complete.\n", asr_task_id);
+        std::this_thread::sleep_for(std::chrono::seconds(1));
+
+        grpc::ClientContext* context = make_asr_client_context();
+        grpc::Status  rpc_status = asr_task_processing->Get(context,asr_task_result_request, op);
+
+        if (!rpc_status.ok()){
+            g_print("RPC failure '%s'\n", rpc_status.error_message().c_str());
+            return; // error code
+        }
+    }
+
+    // Extract the response payload.
+
+    if (!op->response().Is<LongRunningRecognitionResponse>()){
+        g_print("RPC call for asr task '%s' completed successfully, but didn't return LongRunningRecognitionResponse in payload\n", asr_task_id);
+
+    }else {
+        op->response().UnpackTo(asr_task_response);
+        g_print("RPC call for asr task '%s' completed successfully. '%ld' bytes received\n", asr_task_id,  asr_task_response->ByteSizeLong());
+    }
+
+}
+
 
 int main(int argc, char* argv[])
 {
 
-    run_recognition_task();
+    const grpc::SslCredentialsOptions credOpt;
+    auto channelCreds =  grpc::SslCredentials(credOpt);
+
+    auto asr_task_channel = grpc::CreateChannel("stt.api.cloud.yandex.net:443", channelCreds); //
+
+    std::unique_ptr<SttService::Stub> speech(SttService::NewStub(asr_task_channel));
+
+    const char* asr_task_id = make_asr_task(std::move(speech));
+    // Create a long operations stub so we can check the progress of the async request.
+    auto asr_task_result_channel = grpc::CreateChannel("operation.api.cloud.yandex.net:443", channelCreds);
+    std::unique_ptr<OperationService::Stub> asr_task_processing(OperationService::NewStub(asr_task_result_channel) );
+
+    LongRunningRecognitionResponse response;
+    collect_asr_task_result(std::move(asr_task_processing), asr_task_id, &response);
+    return 0;
 
     GstBus* bus;
     GstMessage* msg;
@@ -216,7 +334,7 @@ int main(int argc, char* argv[])
     loop = g_main_loop_new(NULL, FALSE);
 
     std::string str_pipeline = "souphttpsrc location = \"" + uri 
-        + "\" !decodebin !audioconvert !audioresample  quality = 10 !capsfilter caps = \"audio/x-raw,format=S16LE,channels=1,rate=16000\" ! wavenc ! s3sink bucket=\"s3-gst-plugin\"  key=\"audio.wav\" aws-sdk-endpoint=\"storage.yandexcloud.net:443\" content-type=\"audio/wav\"";
+        + "\" !decodebin !audioconvert !audioresample  quality = 10 !capsfilter caps = \"audio/x-raw,format=S16LE,channels=1,rate=48000\" ! wavenc ! s3sink bucket=\"s3-gst-plugin\"  key=\"audio.wav\" aws-sdk-endpoint=\"storage.yandexcloud.net:443\" content-type=\"audio/wav\"";
 
     GstElement* pipeline =  gst_parse_launch(str_pipeline.c_str(), NULL);
 
@@ -264,6 +382,6 @@ int main(int argc, char* argv[])
     g_source_remove(watch_id);
     g_main_loop_unref(loop);
 
-    
+
     return 0;
 }
