@@ -28,7 +28,7 @@ get_target_property(gRPC_CPP_PLUGIN_EXECUTABLE gRPC::grpc_cpp_plugin
 find_package(Threads)
 
 include_directories(${Protobuf_INCLUDE_DIRS})
-# include_directories("/usr/local/include")
+include_directories("/usr/local/include")
 
 include_directories(${CMAKE_CURRENT_SOURCE_DIR})
 
@@ -113,7 +113,8 @@ ENDFOREACH()
 # Add source to this project's executable.
 add_executable (sk-transcoder "sk-discoverer.cpp" "sk-transcoder.cpp" ${grpc_cc_src} ${grpc_h_src} ${protobuf_cc_src} ${protobuf_h_src})
 
-target_link_libraries(sk-transcoder PUBLIC PkgConfig::GLIB_PKG ${GSTREAMER_LIBRARIES} gRPC::grpc++_unsecure protobuf::libprotobuf)
+target_link_libraries(sk-transcoder PUBLIC PkgConfig::GLIB_PKG ${GSTREAMER_LIBRARIES}  gRPC::grpc++ gRPC::grpc  protobuf::libprotobuf)
+# install(FILES ${CMAKE_CURRENT_SOURCE_DIR}/../cert/CA.pem DESTINATION bin)
 
 # DEBUG PRINT
 #get_cmake_property(_variableNames VARIABLES)
