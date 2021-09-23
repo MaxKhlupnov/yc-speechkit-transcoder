@@ -18,3 +18,21 @@ $ cd /yc-speechkit-transcoder/src
 $ cmake .
 $ make
 ```
+## Configuration file
+ config.txt - is configuration file example.
+Currently accepts following properties:
+* `access-key-id`, e.g. `AKIAIOSFODNN7EXAMPLE`
+* `secret-access-key`, e.g. `wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY`
+* `language_code`
+* 'audio_encoding'
+* 'sample_rate_hertz'
+* 'model'
+* 'auth_model'
+* 'auth_token'
+* 'bucket'
+* 'str_pipeline_template'
+
+## Usage
+./asr-client config=<path_to_cfg_file> audio-source=<uri_to_audio>
+
+
