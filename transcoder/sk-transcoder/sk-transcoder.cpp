@@ -250,21 +250,7 @@ void collect_asr_task_result(std::unique_ptr<OperationService::Stub> asr_task_pr
 int main(int argc, char* argv[])
 {
 
-    const grpc::SslCredentialsOptions credOpt;
-    auto channelCreds =  grpc::SslCredentials(credOpt);
 
-    auto asr_task_channel = grpc::CreateChannel("stt.api.cloud.yandex.net:443", channelCreds); //
-
-    std::unique_ptr<SttService::Stub> speech(SttService::NewStub(asr_task_channel));
-
-    const char* asr_task_id = make_asr_task(std::move(speech));
-    // Create a long operations stub so we can check the progress of the async request.
-    auto asr_task_result_channel = grpc::CreateChannel("operation.api.cloud.yandex.net:443", channelCreds);
-    std::unique_ptr<OperationService::Stub> asr_task_processing(OperationService::NewStub(asr_task_result_channel) );
-
-    LongRunningRecognitionResponse response;
-    collect_asr_task_result(std::move(asr_task_processing), asr_task_id, &response);
-    return 0;
 
     GstBus* bus;
     GstMessage* msg;
@@ -279,7 +265,7 @@ int main(int argc, char* argv[])
         //"https://www.freedesktop.org/software/gstreamer-sdk/data/media/sintel_trailer-480p.webm";
     //"https://www.freedesktop.org/software/gstreamer-sdk/data/media/sintel_trailer-480p.webm";
     
-    std::string uri = "https://storage.yandexcloud.net/m24-speech/01%20Back%20in%20Black.mp3";;
+    std::string uri = "https://storage.yandexcloud.net/vera/filipp.wav";;
 
     /* if a URI was provided, use it instead of the default one */
     if (argc > 1) {
@@ -332,8 +318,8 @@ int main(int argc, char* argv[])
 
     GMainLoop* loop;
     loop = g_main_loop_new(NULL, FALSE);
-
-    std::string str_pipeline = "souphttpsrc location = \"" + uri 
+//souphttpsrc
+    std::string str_pipeline = "curlhttpsrc location=\"" + uri 
         + "\" !decodebin !audioconvert !audioresample  quality = 10 !capsfilter caps = \"audio/x-raw,format=S16LE,channels=1,rate=48000\" ! wavenc ! s3sink bucket=\"s3-gst-plugin\"  key=\"audio.wav\" aws-sdk-endpoint=\"storage.yandexcloud.net:443\" content-type=\"audio/wav\"";
 
     GstElement* pipeline =  gst_parse_launch(str_pipeline.c_str(), NULL);
@@ -383,5 +369,19 @@ int main(int argc, char* argv[])
     g_main_loop_unref(loop);
 
 
+    const grpc::SslCredentialsOptions credOpt;
+    auto channelCreds = grpc::SslCredentials(credOpt);
+
+    auto asr_task_channel = grpc::CreateChannel("stt.api.cloud.yandex.net:443", channelCreds); //
+
+    std::unique_ptr<SttService::Stub> speech(SttService::NewStub(asr_task_channel));
+
+    const char* asr_task_id = make_asr_task(std::move(speech));
+    // Create a long operations stub so we can check the progress of the async request.
+    auto asr_task_result_channel = grpc::CreateChannel("operation.api.cloud.yandex.net:443", channelCreds);
+    std::unique_ptr<OperationService::Stub> asr_task_processing(OperationService::NewStub(asr_task_result_channel));
+
+    LongRunningRecognitionResponse response;
+    collect_asr_task_result(std::move(asr_task_processing), asr_task_id, &response);
     return 0;
 }

@@ -7,7 +7,7 @@ project ("sk-transcoder")
 
 
 # these calls create special `PkgConfig::<MODULE>` variables
-pkg_check_modules(GLIB_PKG REQUIRED IMPORTED_TARGET glib-2.0 gstreamer-aws-1.0)
+pkg_check_modules(GLIB_PKG REQUIRED IMPORTED_TARGET glib-2.0 gstreamer-aws-1.0 gio-2.0)
 
 
 ########################################################################
@@ -17,6 +17,25 @@ find_package(Protobuf REQUIRED)
 # gRPC
 find_package(gRPC CONFIG REQUIRED)
 message(STATUS "Using gRPC ${gRPC_VERSION}")
+
+########################################################################
+# giosrc 
+########################################################################
+FIND_PATH(GIO_INCLUDE_DIR gio.h
+   PATHS
+   ${PC_GIO_INCLUDEDIR}
+   ${PC_GIO_INCLUDE_DIRS}
+   PATH_SUFFIXES glib-2.0/gio/
+   )
+SET( GIO_INCLUDE_DIRS ${GIO_INCLUDE_DIR} )
+
+IF (GIO_INCLUDE_DIRS)
+      MESSAGE(STATUS "Found Gio libraries:  ${_GioLibs}")
+	  include_directories(${GIO_INCLUDE_DIRS})
+      MESSAGE(STATUS "Found Gio includes : ${GIO_INCLUDE_DIRS}")
+ENDIF (GIO_INCLUDE_DIRS)
+
+MESSAGE(STATUS "DEBUG: Gio include directory = ${GIO_INCLUDE_DIRS}")
 
 # gRPC C++ plugin
 #get_target_property(grpc_cpp_plugin_location gRPC::grpc_cpp_plugin LOCATION) #get plugin location
@@ -29,7 +48,8 @@ find_package(Threads)
 
 include_directories(${Protobuf_INCLUDE_DIRS})
 include_directories("/usr/local/include")
-
+include_directories("/usr/local/include/gtk-2.0")
+include_directories(${GIO_INCLUDE_DIRS})
 include_directories(${CMAKE_CURRENT_SOURCE_DIR})
 
 #######################################################################################################################
@@ -113,7 +133,7 @@ ENDFOREACH()
 # Add source to this project's executable.
 add_executable (sk-transcoder "sk-discoverer.cpp" "sk-transcoder.cpp" ${grpc_cc_src} ${grpc_h_src} ${protobuf_cc_src} ${protobuf_h_src})
 
-target_link_libraries(sk-transcoder PUBLIC PkgConfig::GLIB_PKG ${GSTREAMER_LIBRARIES}  gRPC::grpc++ gRPC::grpc  protobuf::libprotobuf)
+target_link_libraries(sk-transcoder PUBLIC PkgConfig::GLIB_PKG ${GSTREAMER_LIBRARIES} gio-2.0  gRPC::grpc++ gRPC::grpc  protobuf::libprotobuf)
 # install(FILES ${CMAKE_CURRENT_SOURCE_DIR}/../cert/CA.pem DESTINATION bin)
 
 # DEBUG PRINT
