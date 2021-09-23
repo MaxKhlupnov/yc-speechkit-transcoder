@@ -7,3 +7,9 @@
 [submodule "transcoder/yandex-cloud-api"]
 	path = transcoder/yandex-cloud-api
 	url = https://github.com/yandex-cloud/cloudapi
+[submodule "src/parson"]
+	path = src/parson
+	url = https://github.com/kgabis/parson
+[submodule "src/yandex-cloud-api"]
+	path = src/yandex-cloud-api
+	url = https://github.com/yandex-cloud/cloudapi
