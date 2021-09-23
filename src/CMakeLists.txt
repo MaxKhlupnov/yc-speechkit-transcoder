@@ -118,9 +118,6 @@ FOREACH(grpc ${grpc_files})
 	
 ENDFOREACH()
 
-# Add parson dependency for JSON
-add_subdirectory("parson")
-
 # Add source to this project's executable.
 add_executable (asr-client  ${grpc_cc_src} ${grpc_h_src} ${protobuf_cc_src} ${protobuf_h_src} "client.cpp"  audio-prep-svc/audio_prep_svc.cpp speechkit_asr_svc.cpp  ./parson/parson.c ./parson/parson.h )
 
