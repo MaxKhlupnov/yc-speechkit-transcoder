@@ -352,3 +352,10 @@ MigrationBackup/
 /transcoder/out/build
 /cmake.txt
 /packages.txt
+/transcoder/sk-transcoder/yandex/cloud
+/transcoder/sk-transcoder/google
+/.idea
+/transcoder/cmake-build-debug
+/transcoder/sk-transcoder/cmake-build-debug
+/transcoder/sk-transcoder/glib-2.0
+/transcoder/sk-transcoder/grpcpp
